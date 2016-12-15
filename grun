@@ -55,29 +55,29 @@ my ( $daemon, $killjob, $editjob );
 my ( %conf, %def, @metrics, @labels );
 
 # defaults just run things locally, no master
-$def{config}           = "/etc/grun.conf";       # config file
-$def{spool}            = "/var/spool/grun";      # dir to place jobs
-$def{port}             = 5184;                   # listen/connect port
-$def{bind}             = '0.0.0.0';              # listen addr
-$def{env}              = ['PATH'];               # list of environment vars to copy from submit through to exec
-$def{default_memory}   = 1000 * 1000;            # default job memory
-$def{default_priority} = 20;                     # default job priority (20 = always run)
-$def{ping_secs}        = 30;                     # how often to tell about load/mem/stats
-$def{remove_secs}      = '$ping_secs * 1000';    # don't even try kickstarting if the node is this old
-$def{idle_load}        = .3;                     # how often to tell about load/mem/stats
-$def{retry_secs}       = 10;                     # how often to retry notifications
-$def{bench_secs}       = 86400;                  # how often to re-benchmark
-$def{max_buf}          = 1000000;                # how often to retry notifications
-$def{expire_secs}      = 14400;                  # remove jobs whose execution nodes haven't reported back in this amount of time
-$def{io_keep}          = 3600;                   # keep io for this long after a job with i/o is finished in a detached session
+$def{config}           = "/scratch/odusek/grun.conf";     # config file
+$def{spool}            = "/scratch/odusek/grun/spool";    # dir to place jobs
+$def{port}             = 5184;                            # listen/connect port
+$def{bind}             = '0.0.0.0';                       # listen addr
+$def{env}              = ['PATH'];                        # list of environment vars to copy from submit through to exec
+$def{default_memory}   = 1000 * 1000;                     # default job memory
+$def{default_priority} = 20;                              # default job priority (20 = always run)
+$def{ping_secs}        = 30;                              # how often to tell about load/mem/stats
+$def{remove_secs}      = '$ping_secs * 1000';             # don't even try kickstarting if the node is this old
+$def{idle_load}        = .3;                              # how often to tell about load/mem/stats
+$def{retry_secs}       = 10;                              # how often to retry notifications
+$def{bench_secs}       = 86400;                           # how often to re-benchmark
+$def{max_buf}          = 1000000;                         # how often to retry notifications
+$def{expire_secs}      = 14400;                           # remove jobs whose execution nodes haven't reported back in this amount of time
+$def{io_keep}          = 3600;                            # keep io for this long after a job with i/o is finished in a detached session
 
 #$def{hard_factor} = 1.5;				# hard limit factor
 $def{max_sched}  = 50;                                                                                       # how many different jobs to try and match before giving up on the rest (queue busy)
 $def{spread_pct} = 5;                                                                                        # how often to "distribute jobs", versus "clump" them
 $def{master}     = 'localhost:5184';                                                                         # central scheduler
 $def{services}   = "queue exec";                                                                             # all can run
-$def{pid_file}   = "/var/run/grun.pid";                                                                      # pid file
-$def{log_file}   = "/var/log/grun.log";                                                                      # pid file
+$def{pid_file}   = "/scratch/odusek/grun/run/grun.pid";                                                      # pid file
+$def{log_file}   = "/scratch/odusek/grun/log/grun.log";                                                      # pid file
 $def{hostname}   = $ENV{HOSTNAME} ? $ENV{HOSTNAME} : $ENV{COMPUTERNAME} ? $ENV{COMPUTERNAME} : `hostname`;
 $def{log_types}  = "note error warn";                                                                        # log all
 $def{nfs_sync}   = 1;                                                                                        # enable nfs sync support
@@ -346,7 +346,7 @@ sub grun_client {
 
     Getopt::Long::Configure qw(require_order no_ignore_case passthrough);
 
-    GetOptions( \%opt, "file=s", "int|I", "memory|m=i", "hosts|h=s", "cpus|c=f", "io!", "wait!", "err_a|err-append|ea=s", "err|e=s", "out|o=s", "out_a|out-append|oa=s", "ouer|out-err|oe=s", "ouer_a|out-err-append|oea=s", "jobx|jobid|j=s", "verbose", "make|M", "debug|D", "env|E=s", "alert=s", "param|p=s@", "wait-exists|W", "priority|r=i", "hold_jid|hold|H=s@" );
+    GetOptions( \%opt, "file=s", "int|I", "memory|m=s", "hosts|h=s", "cpus|c=f", "io!", "wait!", "err_a|err-append|ea=s", "err|e=s", "out|o=s", "out_a|out-append|oa=s", "ouer|out-err|oe=s", "ouer_a|out-err-append|oea=s", "jobx|jobid|j=s", "verbose", "make|M", "debug|D", "env|E=s", "alert=s", "param|p=s@", "wait-exists|W", "priority|r=i", "hold_jid|hold|H=s@" );
 
     # wait for other jobs to finish (hacky implementation)
     if ( $opt{hold_jid} ){
@@ -355,6 +355,8 @@ sub grun_client {
             my $pid = fork();
             exit(1) if $pid < 0;
             exit(0) if $pid > 0;
+            close(STDERR);  # unfortunately, we need to do this to be able to run in a script
+            close(STDOUT);
         }
         while (`$GRUN_PATH -q jo | grep -P '^$jids\\s'`) {
             sleep(5);
@@ -2675,7 +2677,7 @@ EOF
 Execution Options:
     -f|ile FILE     Read FILE for job options (mem, cpu, cmd, etc)
     -m|em INT       memory minimum in MB
-    -c|pu CPUS      minimum number of cpus 
+    -c|pu CPUS      minimum number of cpus
     -host N1,N2     specify certain hosts
     -j|obid TEXT    user-supplied job ID
     -v|erbose       print job id, execution node and stats to STDERR
@@ -2689,7 +2691,7 @@ Execution Options:
 
 All options can be abbreviated to uniqueness.
 
-* You can append error & output with -oa, -ea or -out-append -err-append, 
+* You can append error & output with -oa, -ea or -out-append -err-append,
 or both with -oea, or --out-err-append.
 
 If the command contains shell metacharacters, it's wrapped in a bash script
@@ -2709,7 +2711,7 @@ Make Semantics:
 For Example:
     grun -M "gzip %i:x.foo #o>x.foo.gz"
 
-If a command fails under Make Semantics, the output file(s) will be 
+If a command fails under Make Semantics, the output file(s) will be
 set to FILE.failed.
 
 NFS sync works better with make semantics.
@@ -2804,7 +2806,7 @@ Execution node config vars:
     full_match        (1) If jobs queue is full, this is evaluated
     full_exec         If full match returns true, then this command is run
     wrap              Job command wrapper
-    
+
 EOF
     return $u;
 }
