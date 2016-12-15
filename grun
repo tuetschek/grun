@@ -346,7 +346,20 @@ sub grun_client {
 
     Getopt::Long::Configure qw(require_order no_ignore_case passthrough);
 
-    GetOptions( \%opt, "file=s", "int|I", "memory|m=i", "hosts|h=s", "cpus|c=f", "io!", "wait!", "err_a|err-append|ea=s", "err|e=s", "out|o=s", "out_a|out-append|oa=s", "ouer|out-err|oe=s", "ouer_a|out-err-append|oea=s", "jobx|jobid|j=s", "verbose", "make|M", "debug|D", "env|E=s", "alert=s", "param|p=s@", "wait-exists|W", "priority|r=i" );
+    GetOptions( \%opt, "file=s", "int|I", "memory|m=i", "hosts|h=s", "cpus|c=f", "io!", "wait!", "err_a|err-append|ea=s", "err|e=s", "out|o=s", "out_a|out-append|oa=s", "ouer|out-err|oe=s", "ouer_a|out-err-append|oea=s", "jobx|jobid|j=s", "verbose", "make|M", "debug|D", "env|E=s", "alert=s", "param|p=s@", "wait-exists|W", "priority|r=i", "hold_jid|hold|H=s@" );
+
+    # wait for other jobs to finish (hacky implementation)
+    if ( $opt{hold_jid} ){
+        my $jids = '(' . join('|', @{$opt{hold_jid}}) . ')';
+        if ( !$opt{wait} ){  # do not block
+            my $pid = fork();
+            exit(1) if $pid < 0;
+            exit(0) if $pid > 0;
+        }
+        while (`$GRUN_PATH -q jo | grep -P '^$jids\\s'`) {
+            sleep(5);
+        }
+    }
 
     if ( ( !!$opt{out} + !!$opt{out_a} + !!$opt{ouer} + !!$opt{ouer_a} ) > 1 ) {
         $config = undef;
