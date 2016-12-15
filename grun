@@ -4127,6 +4127,8 @@ sub do_execute {
 
     my $ok = 1;
     eval {
+        $opts->{out} =~ s/%j/$opts->{id}/ if ( $opts->{out} );
+        $opts->{err} =~ s/%j/$opts->{id}/ if ( $opts->{err} );
         if ( $opts->{out} ) {
             if ( $opts->{out_a} ) {
                 $ok &&= open( STDOUT, ">>$opts->{out}" );
